@@ -65,7 +65,7 @@ module Vienna
     def render
       if template = Template[self.class.template]
         @output_buffer = OutputBuffer.new
-        element.html = instance_exec @output_buffer, template.body
+        element.html = instance_exec @output_buffer, &template.body
       end
     end
 

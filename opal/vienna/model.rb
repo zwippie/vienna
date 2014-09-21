@@ -79,6 +79,7 @@ module Vienna
         adapter.cache[id] = model
         all << model
       end
+      # When and what if model is not set here?
 
       model.load(attributes)
 

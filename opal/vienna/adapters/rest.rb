@@ -30,27 +30,48 @@ module Vienna
       end
     end
 
-    def create_record(record)
+    def create_record(record, &block)
       url = record_url record
 
-      options = { dataType: "json", payload: record.as_json }
+      options = { 
+        dataType: "json", 
+        payload: record.as_json, 
+        headers: { 
+          :'X-Requested-With' => 'XMLHTTPRequest' 
+        }
+      }
 
-      http_request(url, options).then do |response|
-        response
+      HTTP.post(url, options) do |response|
+        if response.ok?
+          new_record = record.class.load_json response.body
+          record.class.trigger :ajax_success, response
+          # record.did_create
+          record.class.trigger :create, new_record
+        else
+          record.trigger :ajax_error, response
+        end
       end
+
+      block.call(record) if block
     end
 
     def update_record(record, &block)
       url = record_url(record)
-      options = { dataType: "json", payload: record.as_json }
+      options = {
+        dataType: "json",
+        payload: record.as_json, 
+        headers: { 
+          :'X-Requested-With' => 'XMLHTTPRequest' 
+        }
+      }
       HTTP.put(url, options) do |response|
         if response.ok?
           record.class.load_json response.body
           record.class.trigger :ajax_success, response
           record.did_update
-          record.class.trigger :change, record.class.all
+          record.class.trigger :update, record
         else
-          record.trigger_events :ajax_error, response
+          record.trigger :ajax_error, response
         end
       end
 
@@ -58,14 +79,19 @@ module Vienna
     end
 
     def delete_record(record, &block)
-      options = { dataType: "json" }
+      options = {
+        dataType: "json", 
+        headers: { 
+          :'X-Requested-With' => 'XMLHTTPRequest' 
+        }
+      }
       url = record_url(record)
 
       HTTP.delete(url, options) do |response|
         if response.ok?
           record.did_destroy
           record.class.trigger :ajax_success, response
-          record.class.trigger :change, record.class.all
+          record.class.trigger :destroy, record
         else
           record.class.trigger :ajax_error, response
         end
@@ -78,7 +104,14 @@ module Vienna
       id = options.fetch(:id, nil)
       params = options.fetch(:params, nil)
       url = id ? "#{record_url(model)}/#{id}" : record_url(model)
-      options = { dataType: "json", data: params }.merge(options)
+      options = {
+        dataType: "json", 
+        data: params, 
+        headers: { 
+          :'X-Requested-With' => 'XMLHTTPRequest' 
+        }
+      }.merge(options)
+
       HTTP.get(url, options) do |response|
         if response.ok?
           response.body.map { |json| model.load_json json }
